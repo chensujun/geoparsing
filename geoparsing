@@ -1,0 +1,155 @@
+#by chensj
+
+from bs4 import BeautifulSoup
+import html5lib
+from urllib import urlopen
+import xlrd
+import xlwt
+import re
+
+def make_soup(url,state,mus,homo):
+###parse text in the GEO page(url) for certain 'state' to a dictionary 
+    text=urlopen(url)
+    soup=BeautifulSoup(text)
+    line=[]
+    for s in soup.find_all('td',{'style':'text-align: justify'}):
+        line.append(s.getText().strip())
+    title=line[0]
+    
+    a=[]
+    for m in soup.find_all('tr',{'valign':'top'}):
+        a.append(m.getText().strip())
+    for i in range(0,len(a)):
+        if re.match(r'Samples ',a[i]):
+            sample=a[i].strip().split('(')[1].strip().split(')')[0]
+    for i in range(0,len(a)):
+        if re.match(r'Organism|Sample organism',a[i]):
+            organism=a[i].strip().split('\n')[1]
+    for i in range(0,len(a)):
+        if re.match(r'Platforms ',a[i]):
+            platform=''.join(a[i].strip().split(')\n')[1]).split('\n')
+            
+    summary=line[1].strip().split(' ')
+    ind=[]
+    temp=[]
+    gene=[]
+    '''if organism=='Mus_musculus':
+        org=gene_list(mus)
+    elif organism=='Homo_sapiens':
+        org=gene_list(homo)
+        
+    if state=='over-expression':
+        for index in range(0,len(summary)):
+            if re.match(r'over([- ])expression|overexpression',summary[index]):
+                ind.append(index)
+    elif state=='knock-out':
+        for index in range(0,len(summary)):
+            if re.match(r'knock([- ])out|knock([- ])in|knock([- ])down|knockout|knockin|knockdown',summary[i]):
+                ind.append(index)'''
+                
+    #fit for factors
+    if organism=='Mus musculus':
+        org=gene_list(mus)
+    elif organism=='Homo sapiens':
+        org=gene_list(homo)
+    else:org=[]
+        
+    for i in range(0,len(summary)):
+        for n in org:
+            for j in n:
+                if summary[i]==j:
+                    temp.append(summary[i])
+    temp=set(temp)
+    for g in temp:
+        if re.match(r'^[A-Z]',g):
+            gene.append(g)
+                    
+    GSE=url.strip().split('=')[1]
+    
+    dic=dict(title=title,sample=sample,organism=organism,platform=platform,gene=gene,GSE=GSE)
+                        
+    return dic
+    
+def get_num(result):
+#get geo number for each result
+    info=[]
+    num=[]
+    a=[]
+    '''data=xlrd.open_workbook(result)#open result and read table
+    table=data.sheets()[0]
+    for j in range(0,table.nrows):
+        if re.search(r'Organism',table.cell(j,0).value):
+            if re.match(r'Homo sapiens|Mus musculus',table.cell(j,1).value):
+                flag=True
+            else:
+                flag=False
+    if flag==True:
+    #changed 20131028   
+    f=0
+    for i in range(0,table.nrows):
+        f=f+1
+        if re.search(r'GSE([0-9]+)',table.cell(i,0).value):
+                        #changed 20131028
+            info.append(table.cell(i,0).value)
+            
+    '''
+    data=open(result).readlines()
+    for j in range(0,len(data)):
+        if re.search(r'GSE([0-9]+)',data[j]):
+            info.append(data[j])
+
+    for i in range(0,len(info)):
+        s=re.search(r'GSE([0-9]+)',info[i]).group(0)
+        a.append(s)
+
+    a=set(a)
+    for i in a:
+        num.append(i)
+    
+                     
+    return num
+
+def form_url(num):      
+    url=[]
+    for i in range(0,len(num)):
+        url.append('http://www.ncbi.nlm.nih.gov/geo/query/acc.cgi?acc='+num[i])
+    return url
+
+def gene_list(species_file):
+    data=xlrd.open_workbook(species_file)
+    table=data.sheets()[0]
+    species=[]
+    for i in range(0,table.nrows):
+        gene=table.cell(i,4).value.strip().split('|')
+        gene.append(table.cell(i,2).value)
+        species.append(gene)
+        gene=[]
+    return species
+
+def write_to_file(url,state,mus,homo,path):
+    data=make_soup(url,state,mus,homo)
+    #20131028 if data['organism']=='Mus musculus' or 'Homo sapiens':
+    ofile=open(path+state,'a+')
+    ofile.write('{data[GSE]}\t{data[sample]}\t{data[organism]}\t{data[platform]}\t{data[gene]}\t{data[title]}\n'.format(data=data))
+    ofile.close()
+    #20131028 else:pass
+    
+
+
+#def main():
+'''
+num=get_num('/Users/chensujun/Desktop/summer2013/geo/gds_result_kd.txt')
+url=form_url(num)
+for i in range(0,len(url)):
+    try:
+        write_to_file(url[i],'knock_down','/Users/chensujun/Desktop/summer2013/geo/Mus_musculus.xls','/Users/chensujun/Desktop/summer2013/geo/Homo_sapiens.xls','/Users/chensujun/Desktop/summer2013/geo/')
+    except:
+        otl=open('/Users/chensujun/Desktop/summer2013/geo/otl','a+')
+        print >> otl,i
+        otl.close()
+        pass'''
+   
+'''for i in n:
+	s=open('/Users/chensujun/Desktop/summer2013/overexpression','a+')
+	s.write('{data}'.format(data=i))
+	s.close()'''
